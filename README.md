@@ -4,13 +4,13 @@
 
 # Work Light
 
-A small Windows floating status window for Codex command hooks.
+A small cross-platform floating status window for Codex command hooks.
 
 [中文说明](README_zh.md)
 
 ## What It Does
 
-Work Light listens for local Codex hook events and turns them into a compact desktop signal. It is meant to sit on top of your Windows desktop while Codex is working, waiting for permission, idle, or reporting an error.
+Work Light listens for local Codex hook events and turns them into a compact desktop signal. It is meant to sit near the top of your desktop while Codex is working, waiting for permission, idle, or reporting an error.
 
 The local hook endpoint is:
 
@@ -20,7 +20,7 @@ POST http://127.0.0.1:17373/codex/hook
 
 ## Features
 
-- Windows floating desktop window with a pixel-style signal light.
+- Windows, macOS, and Linux floating desktop window with a pixel-style signal light.
 - Wails 3 + Go backend with a React + TypeScript frontend.
 - Local-only hook receiver on `127.0.0.1:17373`.
 - Status mapping for Codex activity, permission requests, stop events, and error-like payloads.
@@ -51,11 +51,16 @@ error > waiting_confirmation > working > idle > offline
 
 ## Requirements
 
-- Windows for running the desktop window.
+- Windows, macOS, or Linux for running the desktop window.
 - Go with Wails v3 alpha dependencies. This project currently uses `github.com/wailsapp/wails/v3 v3.0.0-alpha.96`; Wails v3 APIs may change.
 - Node.js and npm for the React frontend build.
-- Bash for `scripts/build-windows.sh`.
+- Bash for the build scripts.
 - `curl` for the shell hook forwarder, or PowerShell for the Windows forwarder.
+- Linux builds require native GTK/WebKitGTK development packages. On Ubuntu 24.04:
+
+```sh
+sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+```
 
 ## Build
 
@@ -63,28 +68,52 @@ From the repository root:
 
 ```sh
 bash scripts/build-windows.sh
+bash scripts/build-macos.sh
+bash scripts/build-linux.sh
 ```
 
-The script installs frontend dependencies, builds the frontend, and then cross-compiles the Windows executable:
+Each script installs frontend dependencies, builds the frontend, and then builds the desktop executable for its target platform.
+
+The Windows script cross-compiles a GUI executable:
 
 ```sh
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
 ```
 
-Output:
+The macOS and Linux scripts must run on their target OS because Wails uses native WebView libraries through CGO.
+
+Outputs:
 
 ```text
 dist/work-light.exe
+dist/work-light-darwin-<arch>
+dist/work-light-linux-<arch>
 ```
 
 The frontend is embedded with `go:embed`, so the executable does not need a neighboring `frontend/dist` directory at runtime.
 
+GitHub Actions builds Windows, macOS, and Linux artifacts on their native runners for pushes to `main` and pull requests.
+
 ## Run
 
-On Windows:
+Windows:
 
 ```powershell
 .\dist\work-light.exe
+```
+
+macOS:
+
+```sh
+chmod +x dist/work-light-darwin-*
+./dist/work-light-darwin-*
+```
+
+Linux:
+
+```sh
+chmod +x dist/work-light-linux-*
+./dist/work-light-linux-*
 ```
 
 When running, Work Light listens locally at:
@@ -211,13 +240,15 @@ GOCACHE=/tmp/work-light-go-build go test -buildvcs=false ./frontend ./internal/.
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -buildvcs=false .
 ```
 
-The Wails app embeds frontend output through `frontend/assets.go`, so rebuild the frontend before building the Windows executable.
+The Wails app embeds frontend output through `frontend/assets.go`, so rebuild the frontend before building platform executables.
 
 ## Troubleshooting
 
-- No window updates: make sure `dist/work-light.exe` is running and listening on `127.0.0.1:17373`.
+- No window updates: make sure the Work Light executable is running and listening on `127.0.0.1:17373`.
 - Hook command not found: replace `${WORK_LIGHT_DIR}` with an absolute path such as `/path/to/work-light`.
 - Windows native hooks do nothing: check that the PowerShell path points to `scripts\codex-hook-forward.ps1`.
+- Linux build fails with `pkg-config` or WebKit errors: install the GTK/WebKitGTK development packages listed in Requirements.
+- macOS build fails on Linux or Windows: run `scripts/build-macos.sh` on macOS.
 - Build fails after changing Wails dependencies: this project uses Wails v3 alpha, so API changes may require code updates.
 - Codex feels delayed: keep hook `timeout` low, for example `timeout = 2`.
 

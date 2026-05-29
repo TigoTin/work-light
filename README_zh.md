@@ -4,13 +4,13 @@
 
 # Work Light
 
-Work Light 是一个用于 Codex command hooks 的 Windows 桌面悬浮状态灯。
+Work Light 是一个用于 Codex command hooks 的跨平台桌面悬浮状态灯。
 
 [English README](README.md)
 
 ## 它能做什么
 
-Work Light 在本机接收 Codex hook 事件，并把 Codex 当前状态显示成一个紧凑的桌面信号灯。它适合放在 Windows 桌面顶部，用来观察 Codex 是否正在工作、等待授权、空闲或进入错误状态。
+Work Light 在本机接收 Codex hook 事件，并把 Codex 当前状态显示成一个紧凑的桌面信号灯。它适合放在桌面顶部附近，用来观察 Codex 是否正在工作、等待授权、空闲或进入错误状态。
 
 本地 hook 接收端点为：
 
@@ -20,7 +20,7 @@ POST http://127.0.0.1:17373/codex/hook
 
 ## 功能
 
-- Windows 桌面悬浮窗，像素风状态灯界面。
+- Windows、macOS 和 Linux 桌面悬浮窗，像素风状态灯界面。
 - Wails 3 + Go 后端，React + TypeScript 前端。
 - 只监听本机 `127.0.0.1:17373`。
 - 支持 Codex 活动、权限请求、停止事件和错误类 payload 的状态映射。
@@ -51,11 +51,16 @@ error > waiting_confirmation > working > idle > offline
 
 ## 环境要求
 
-- Windows，用于运行桌面悬浮窗。
+- Windows、macOS 或 Linux，用于运行桌面悬浮窗。
 - Go 和 Wails v3 alpha 依赖。本项目当前使用 `github.com/wailsapp/wails/v3 v3.0.0-alpha.96`；Wails v3 仍处于 alpha 阶段，API 可能变化。
 - Node.js 和 npm，用于构建 React 前端。
-- Bash，用于运行 `scripts/build-windows.sh`。
+- Bash，用于运行构建脚本。
 - shell 转发脚本需要 `curl`；Windows 转发脚本需要 PowerShell。
+- Linux 构建需要本机 GTK/WebKitGTK 开发包。Ubuntu 24.04 示例：
+
+```sh
+sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+```
 
 ## 构建
 
@@ -63,28 +68,52 @@ error > waiting_confirmation > working > idle > offline
 
 ```sh
 bash scripts/build-windows.sh
+bash scripts/build-macos.sh
+bash scripts/build-linux.sh
 ```
 
-脚本会安装前端依赖、构建前端，然后交叉编译 Windows 可执行文件：
+每个脚本都会安装前端依赖、构建前端，然后构建对应平台的桌面可执行文件。
+
+Windows 脚本会交叉编译 GUI 可执行文件：
 
 ```sh
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
 ```
 
+macOS 和 Linux 脚本必须在目标系统上运行，因为 Wails 通过 CGO 使用本机 WebView 依赖。
+
 输出路径：
 
 ```text
 dist/work-light.exe
+dist/work-light-darwin-<arch>
+dist/work-light-linux-<arch>
 ```
 
 前端会通过 `go:embed` 嵌入可执行文件，运行时不需要在同目录携带 `frontend/dist`。
 
+GitHub Actions 会在原生 runner 上为推送到 `main` 和 pull request 构建 Windows、macOS、Linux 产物。
+
 ## 运行
 
-在 Windows 上运行：
+Windows：
 
 ```powershell
 .\dist\work-light.exe
+```
+
+macOS：
+
+```sh
+chmod +x dist/work-light-darwin-*
+./dist/work-light-darwin-*
+```
+
+Linux：
+
+```sh
+chmod +x dist/work-light-linux-*
+./dist/work-light-linux-*
 ```
 
 启动后，Work Light 会在本机监听：
@@ -208,13 +237,15 @@ GOCACHE=/tmp/work-light-go-build go test -buildvcs=false ./frontend ./internal/.
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -buildvcs=false .
 ```
 
-Wails 应用通过 `frontend/assets.go` 嵌入前端产物，因此构建 Windows 可执行文件前需要先构建前端。
+Wails 应用通过 `frontend/assets.go` 嵌入前端产物，因此构建各平台可执行文件前需要先构建前端。
 
 ## 故障排查
 
-- 窗口没有更新：确认 `dist/work-light.exe` 正在运行，并监听 `127.0.0.1:17373`。
+- 窗口没有更新：确认 Work Light 可执行文件正在运行，并监听 `127.0.0.1:17373`。
 - hook 命令找不到：把 `${WORK_LIGHT_DIR}` 替换成 `/path/to/work-light` 这样的绝对路径。
 - Windows 原生 hook 没有效果：检查 PowerShell 命令是否指向 `scripts\codex-hook-forward.ps1`。
+- Linux 构建出现 `pkg-config` 或 WebKit 错误：安装环境要求中列出的 GTK/WebKitGTK 开发包。
+- macOS 构建在 Linux 或 Windows 上失败：请在 macOS 上运行 `scripts/build-macos.sh`。
 - 修改 Wails 依赖后构建失败：本项目使用 Wails v3 alpha，API 变化可能需要同步调整代码。
 - Codex 被 hook 拖慢：保持较短的 hook 超时时间，例如 `timeout = 2`。
 

@@ -10,8 +10,9 @@ You need:
 
 - Go
 - Node.js and npm
-- Bash for `scripts/build-windows.sh`
-- Windows to run the desktop window
+- Bash for the build scripts
+- Windows, macOS, or Linux to run the desktop window
+- Linux GTK/WebKitGTK development packages when building on Linux
 
 Install frontend dependencies before running frontend commands:
 
@@ -47,11 +48,17 @@ Build the frontend:
 npm --prefix frontend run build
 ```
 
-Build the Windows executable:
+Build platform executables:
 
 ```sh
 bash scripts/build-windows.sh
+bash scripts/build-macos.sh
+bash scripts/build-linux.sh
 ```
+
+macOS and Linux builds must run on their native OS because Wails uses native
+WebView libraries through CGO. GitHub Actions builds all supported platforms on
+native runners.
 
 ## Pull Requests
 
