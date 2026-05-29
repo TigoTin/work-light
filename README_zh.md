@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/work-light-logo.svg" alt="Work Light logo" width="720">
+  <img src="docs/assets/logo.png" alt="Work Light logo" width="720">
 </p>
 
 # Work Light
@@ -29,6 +29,7 @@ POST http://127.0.0.1:17373/codex/hook
 
 ## 界面截图
 
+![Work Light](docs/assets/screenshots/work.png)
 ![Work Light 状态动画](docs/assets/screenshots/work-light-states.gif)
 
 ## 工作原理
