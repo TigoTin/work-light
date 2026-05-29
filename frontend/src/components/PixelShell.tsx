@@ -6,6 +6,7 @@ type PixelShellProps = {
   pinned: boolean;
   workspaceName?: string;
   workspaceCwd?: string;
+  workspaceSelected?: boolean;
   otherStatusBadge?: ReactNode;
   otherStatusPopover?: ReactNode;
   children: ReactNode;
@@ -27,6 +28,7 @@ export function PixelShell({
   pinned,
   workspaceName = '',
   workspaceCwd = '',
+  workspaceSelected = false,
   otherStatusBadge,
   otherStatusPopover,
   children,
@@ -54,7 +56,13 @@ export function PixelShell({
           <span className="brand-label">CODEX</span>
           {otherStatusBadge}
           <span
-            className={`workspace-label${workspaceName ? '' : ' workspace-label-empty'}`}
+            className={[
+              'workspace-label',
+              workspaceName ? '' : 'workspace-label-empty',
+              workspaceSelected ? 'workspace-label-selected' : ''
+            ]
+              .filter(Boolean)
+              .join(' ')}
             title={workspaceCwd}
             aria-label={workspaceName ? `Codex workspace ${workspaceName}` : undefined}
             aria-hidden={workspaceName ? undefined : true}

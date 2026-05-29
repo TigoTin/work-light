@@ -255,6 +255,36 @@ func TestHTTPHandlerAcceptsPostJSONUpdatesTimestampAndEmits(t *testing.T) {
 	}
 }
 
+func TestHTTPHandlerReportsHealth(t *testing.T) {
+	handler := NewHookHandler(NewAggregator(time.Minute), nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if rec.Body.String() != "ok\n" {
+		t.Fatalf("body = %q, want ok newline", rec.Body.String())
+	}
+}
+
+func TestHTTPHandlerRejectsOversizedHookPayloads(t *testing.T) {
+	handler := NewHookHandler(NewAggregator(time.Minute), nil, nil)
+	payload := bytes.NewBufferString(`{"hook_event_name":"SessionStart","padding":"`)
+	payload.Write(bytes.Repeat([]byte("x"), 70*1024))
+	payload.WriteString(`"}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/codex/hook", payload)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status code = %d, want %d; body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

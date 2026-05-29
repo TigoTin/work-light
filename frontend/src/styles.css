@@ -279,6 +279,13 @@ button {
   color: rgba(255, 241, 168, 0.48);
 }
 
+.workspace-label-selected {
+  color: #101919;
+  background: #ffd34a;
+  border-left-color: #fff8c7;
+  text-shadow: none;
+}
+
 .lamp-row {
   --wails-draggable: drag;
   display: grid;

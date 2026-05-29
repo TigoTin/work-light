@@ -2,9 +2,12 @@ package codexstatus
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 )
+
+const MaxHookPayloadBytes = 64 * 1024
 
 type Emitter func(StatusEvent)
 
@@ -19,6 +22,16 @@ func NewHookHandler(aggregator *Aggregator, emit Emitter, clock Clock) http.Hand
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("ok\n"))
+	})
 	mux.HandleFunc("/codex/hook", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
@@ -27,7 +40,12 @@ func NewHookHandler(aggregator *Aggregator, emit Emitter, clock Clock) http.Hand
 		}
 
 		var payload HookPayload
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxHookPayloadBytes)).Decode(&payload); err != nil {
+			var maxBytesError *http.MaxBytesError
+			if errors.As(err, &maxBytesError) {
+				http.Error(w, "payload too large", http.StatusRequestEntityTooLarge)
+				return
+			}
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}

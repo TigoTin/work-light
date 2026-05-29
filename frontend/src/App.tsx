@@ -157,6 +157,12 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
     }
   }, [otherCount]);
 
+  useEffect(() => {
+    if (selectedCwd && sessions.length > 0 && !selectedStatus) {
+      setSelectedCwd('');
+    }
+  }, [selectedCwd, selectedStatus, sessions]);
+
   function togglePin() {
     setPinned((current) => {
       const next = !current;
@@ -172,6 +178,7 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
         pinned={pinned}
         workspaceName={workspace}
         workspaceCwd={displayCwd}
+        workspaceSelected={Boolean(selectedStatus)}
         otherStatusBadge={
           otherCount > 0 ? (
             <button
