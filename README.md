@@ -27,6 +27,16 @@ POST http://127.0.0.1:17373/codex/hook
 - Multi-session badge when other active Codex sessions are visible.
 - Frontend assets embedded into the executable with `go:embed`.
 
+## Screenshots
+
+| Idle | Working | Waiting |
+| --- | --- | --- |
+| ![Idle status](docs/assets/screenshots/work-light-idle.png) | ![Working status](docs/assets/screenshots/work-light-working.png) | ![Waiting for confirmation](docs/assets/screenshots/work-light-waiting.png) |
+
+| Error | Multi-session |
+| --- | --- |
+| ![Error status](docs/assets/screenshots/work-light-error.png) | ![Multi-session badge](docs/assets/screenshots/work-light-multisession.png) |
+
 ## How It Works
 
 Codex command hooks receive JSON on stdin. The payload can include fields such as `session_id`, `cwd`, `hook_event_name`, and `permission_mode`.

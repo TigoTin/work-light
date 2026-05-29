@@ -27,6 +27,16 @@ POST http://127.0.0.1:17373/codex/hook
 - 多个 Codex 会话同时活跃时显示多会话角标。
 - 前端资源通过 `go:embed` 打包进可执行文件。
 
+## 界面截图
+
+| 空闲 | 工作中 | 等待确认 |
+| --- | --- | --- |
+| ![空闲状态](docs/assets/screenshots/work-light-idle.png) | ![工作中状态](docs/assets/screenshots/work-light-working.png) | ![等待确认状态](docs/assets/screenshots/work-light-waiting.png) |
+
+| 错误 | 多会话 |
+| --- | --- |
+| ![错误状态](docs/assets/screenshots/work-light-error.png) | ![多会话角标](docs/assets/screenshots/work-light-multisession.png) |
+
 ## 工作原理
 
 Codex command hooks 会从 stdin 接收 JSON。这个 JSON 可以包含 `session_id`、`cwd`、`hook_event_name`、`permission_mode` 等字段。
