@@ -9,6 +9,9 @@ on:
       - "v*"
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -18,17 +21,23 @@ jobs:
       matrix:
         include:
           - name: Windows amd64
+            platform: windows
             runner: windows-latest
             script: scripts/build-windows.sh
             artifact: work-light-windows-amd64
+            binary: work-light.exe
           - name: macOS native
+            platform: macos
             runner: macos-latest
             script: scripts/build-macos.sh
             artifact: work-light-macos-native
+            binary: work-light-darwin-*
           - name: Linux native
+            platform: linux
             runner: ubuntu-24.04
             script: scripts/build-linux.sh
             artifact: work-light-linux-native
+            binary: work-light-linux-*
 
     steps:
       - name: Checkout
@@ -56,9 +65,42 @@ jobs:
         shell: bash
         run: bash "${{ matrix.script }}"
 
+      - name: Package executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          binary=$(find dist -maxdepth 1 -type f -name '${{ matrix.binary }}' | head -n 1)
+          if [[ -z "$binary" ]]; then
+            echo "No executable found for pattern: ${{ matrix.binary }}" >&2
+            exit 1
+          fi
+          chmod +x "$binary" || true
+          package="work-light-${{ matrix.platform }}-$(go env GOARCH).tar.gz"
+          tar -C dist -czf "release/$package" "$(basename "$binary")"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/*
+          path: release/*
           if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

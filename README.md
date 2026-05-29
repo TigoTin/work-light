@@ -94,6 +94,7 @@ dist/work-light-linux-<arch>
 The frontend is embedded with `go:embed`, so the executable does not need a neighboring `frontend/dist` directory at runtime.
 
 GitHub Actions builds Windows, macOS, and Linux artifacts on their native runners for pushes to `main` and pull requests.
+Version tags such as `v0.1.0` also publish a GitHub Release with packaged executables for all three platforms.
 
 ## Run
 

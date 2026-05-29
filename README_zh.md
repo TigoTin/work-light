@@ -94,6 +94,7 @@ dist/work-light-linux-<arch>
 前端会通过 `go:embed` 嵌入可执行文件，运行时不需要在同目录携带 `frontend/dist`。
 
 GitHub Actions 会在原生 runner 上为推送到 `main` 和 pull request 构建 Windows、macOS、Linux 产物。
+推送 `v0.1.0` 这类版本 tag 时，也会自动创建 GitHub Release，并附上三个平台的可执行文件压缩包。
 
 ## 运行
 
