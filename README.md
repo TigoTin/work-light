@@ -29,13 +29,7 @@ POST http://127.0.0.1:17373/codex/hook
 
 ## Screenshots
 
-| Idle | Working | Waiting |
-| --- | --- | --- |
-| ![Idle status](docs/assets/screenshots/work-light-idle.png) | ![Working status](docs/assets/screenshots/work-light-working.png) | ![Waiting for confirmation](docs/assets/screenshots/work-light-waiting.png) |
-
-| Error | Multi-session |
-| --- | --- |
-| ![Error status](docs/assets/screenshots/work-light-error.png) | ![Multi-session badge](docs/assets/screenshots/work-light-multisession.png) |
+![Work Light status animation](docs/assets/screenshots/work-light-states.gif)
 
 ## How It Works
 
