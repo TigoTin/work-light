@@ -29,8 +29,13 @@ POST http://127.0.0.1:17373/codex/hook
 
 ## 界面截图
 
-![Work Light](docs/assets/screenshots/work.png)
-![Work Light 状态动画](docs/assets/screenshots/work-light-states.gif)
+| 空闲 | 工作中 | 等待确认 |
+| --- | --- | --- |
+| ![空闲状态](docs/assets/screenshots/work-light-idle.gif) | ![工作中状态](docs/assets/screenshots/work-light-working.gif) | ![等待确认状态](docs/assets/screenshots/work-light-waiting.gif) |
+
+| 错误 | 多会话 |
+| --- | --- |
+| ![错误状态](docs/assets/screenshots/work-light-error.gif) | ![多会话角标](docs/assets/screenshots/work-light-multisession.gif) |
 
 ## 工作原理
 
