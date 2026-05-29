@@ -60,6 +60,18 @@ macOS and Linux builds must run on their native OS because Wails uses native
 WebView libraries through CGO. GitHub Actions builds all supported platforms on
 native runners.
 
+## Releases
+
+Use a new semantic version tag for each release:
+
+```sh
+git tag -a v0.1.1 -m "Work Light v0.1.1"
+git push origin v0.1.1
+```
+
+Do not move a published tag. The release workflow packages Windows as `.zip`,
+macOS as `.app.zip`, Linux as `.deb`, and publishes `checksums.txt`.
+
 ## Pull Requests
 
 Please keep pull requests focused and include:

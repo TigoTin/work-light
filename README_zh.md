@@ -6,6 +6,9 @@
 
 Work Light 是一个用于 Codex command hooks 的跨平台桌面悬浮状态灯。
 
+[![Build](https://github.com/TigoTin/work-light/actions/workflows/build.yml/badge.svg)](https://github.com/TigoTin/work-light/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/TigoTin/work-light?label=release)](https://github.com/TigoTin/work-light/releases/latest)
+
 [English README](README.md)
 
 ## 它能做什么
@@ -68,6 +71,39 @@ error > waiting_confirmation > working > idle > offline
 sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
 
+其他 Linux 发行版包名不同：
+
+```sh
+# Fedora
+sudo dnf install gcc pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel
+
+# Arch Linux
+sudo pacman -S base-devel pkgconf gtk3 webkit2gtk-4.1
+```
+
+## 下载
+
+从最新 Release 下载：
+
+```text
+https://github.com/TigoTin/work-light/releases/latest
+```
+
+Release 产物：
+
+| 平台 | 文件 |
+| --- | --- |
+| Windows | `work-light-windows-amd64.zip` |
+| macOS | `work-light-macos-arm64.app.zip` |
+| Linux | `work-light-linux-amd64.deb` |
+| 校验文件 | `checksums.txt` |
+
+下载后可以校验：
+
+```sh
+sha256sum -c checksums.txt
+```
+
 ## 构建
 
 在仓库根目录运行：
@@ -99,7 +135,9 @@ dist/work-light-linux-<arch>
 前端会通过 `go:embed` 嵌入可执行文件，运行时不需要在同目录携带 `frontend/dist`。
 
 GitHub Actions 会在原生 runner 上为推送到 `main` 和 pull request 构建 Windows、macOS、Linux 产物。
-推送 `v0.1.0` 这类版本 tag 时，也会自动创建 GitHub Release，并附上三个平台的可执行文件压缩包。
+推送 `v0.1.0` 这类版本 tag 时，也会自动创建 GitHub Release，并附上三个平台的安装包和 `checksums.txt`。
+
+已经发布的 tag 不要移动。后续修复请使用新的 patch tag，例如 `v0.1.1`。
 
 ## 运行
 
@@ -112,15 +150,21 @@ Windows：
 macOS：
 
 ```sh
-chmod +x dist/work-light-darwin-*
-./dist/work-light-darwin-*
+unzip work-light-macos-arm64.app.zip
+open "Work Light.app"
+```
+
+macOS 应用当前未签名。如果 Gatekeeper 首次拦截，可以在 Finder 中按住 Control 点击应用并选择 Open，或者运行：
+
+```sh
+xattr -dr com.apple.quarantine "Work Light.app"
 ```
 
 Linux：
 
 ```sh
-chmod +x dist/work-light-linux-*
-./dist/work-light-linux-*
+sudo apt install ./work-light-linux-amd64.deb
+work-light
 ```
 
 启动后，Work Light 会在本机监听：
@@ -135,6 +179,18 @@ http://127.0.0.1:17373/codex/hook
 
 ```sh
 export WORK_LIGHT_DIR=/path/to/work-light
+```
+
+可以直接生成可复制的 hook 配置片段：
+
+```sh
+bash scripts/print-codex-hooks.sh /path/to/work-light
+```
+
+Windows 原生命令环境：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\print-codex-hooks.ps1 C:\path\to\work-light
 ```
 
 Codex hooks 使用嵌套的 TOML array-of-table 形式。下面的示例会把常见 Codex hook 事件转发给 Work Light：

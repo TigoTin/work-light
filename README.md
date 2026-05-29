@@ -6,6 +6,9 @@
 
 A small cross-platform floating status window for Codex command hooks.
 
+[![Build](https://github.com/TigoTin/work-light/actions/workflows/build.yml/badge.svg)](https://github.com/TigoTin/work-light/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/TigoTin/work-light?label=release)](https://github.com/TigoTin/work-light/releases/latest)
+
 [中文说明](README_zh.md)
 
 ## What It Does
@@ -68,6 +71,39 @@ error > waiting_confirmation > working > idle > offline
 sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
 
+Other Linux distributions use different package names:
+
+```sh
+# Fedora
+sudo dnf install gcc pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel
+
+# Arch Linux
+sudo pacman -S base-devel pkgconf gtk3 webkit2gtk-4.1
+```
+
+## Download
+
+Download the latest release from:
+
+```text
+https://github.com/TigoTin/work-light/releases/latest
+```
+
+Release assets:
+
+| Platform | Asset |
+| --- | --- |
+| Windows | `work-light-windows-amd64.zip` |
+| macOS | `work-light-macos-arm64.app.zip` |
+| Linux | `work-light-linux-amd64.deb` |
+| Checksums | `checksums.txt` |
+
+Verify downloads with:
+
+```sh
+sha256sum -c checksums.txt
+```
+
 ## Build
 
 From the repository root:
@@ -99,7 +135,9 @@ dist/work-light-linux-<arch>
 The frontend is embedded with `go:embed`, so the executable does not need a neighboring `frontend/dist` directory at runtime.
 
 GitHub Actions builds Windows, macOS, and Linux artifacts on their native runners for pushes to `main` and pull requests.
-Version tags such as `v0.1.0` also publish a GitHub Release with packaged executables for all three platforms.
+Version tags such as `v0.1.0` also publish a GitHub Release with packaged executables and `checksums.txt`.
+
+Published tags should not be moved. Use a new patch tag such as `v0.1.1` for follow-up releases.
 
 ## Run
 
@@ -112,15 +150,21 @@ Windows:
 macOS:
 
 ```sh
-chmod +x dist/work-light-darwin-*
-./dist/work-light-darwin-*
+unzip work-light-macos-arm64.app.zip
+open "Work Light.app"
+```
+
+The macOS app is currently unsigned. If Gatekeeper blocks the first launch, open it from Finder with Control-click -> Open, or run:
+
+```sh
+xattr -dr com.apple.quarantine "Work Light.app"
 ```
 
 Linux:
 
 ```sh
-chmod +x dist/work-light-linux-*
-./dist/work-light-linux-*
+sudo apt install ./work-light-linux-amd64.deb
+work-light
 ```
 
 When running, Work Light listens locally at:
@@ -135,6 +179,18 @@ Set `WORK_LIGHT_DIR` to your checkout path, or replace it with an absolute path 
 
 ```sh
 export WORK_LIGHT_DIR=/path/to/work-light
+```
+
+You can print a ready-to-copy hook snippet with:
+
+```sh
+bash scripts/print-codex-hooks.sh /path/to/work-light
+```
+
+For native Windows Codex runs:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\print-codex-hooks.ps1 C:\path\to\work-light
 ```
 
 Codex hooks use nested array-of-table TOML entries. The following examples send common Codex hook events to Work Light:

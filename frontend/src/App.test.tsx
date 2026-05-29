@@ -146,6 +146,60 @@ describe('App signal states', () => {
     expect(badge).toHaveClass('other-status-badge', 'other-status-error');
     expect(badge).toHaveAttribute('title', 'Other sessions: 2; highest status: error; workspaces: alpha, beta');
     expect(badge).toHaveAccessibleName('Other sessions: 2; highest status: error; workspaces: alpha, beta');
+    expect(badge).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens a compact workspace list from the other-session badge', () => {
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('codexStatusChanged', {
+          detail: {
+            status: 'idle',
+            otherStatus: 'waiting_confirmation',
+            otherCount: 2,
+            otherCwds: ['/home/user/projects/alpha', '/home/user/projects/beta']
+          }
+        })
+      );
+    });
+
+    const badge = screen.getByTestId('other-status-badge');
+    fireEvent.click(badge);
+
+    expect(badge).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('other-session-popover')).toHaveTextContent('alpha');
+    expect(screen.getByTestId('other-session-popover')).toHaveTextContent('beta');
+  });
+
+  it('summarizes hidden workspaces in the other-session popover', () => {
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('codexStatusChanged', {
+          detail: {
+            status: 'idle',
+            otherStatus: 'working',
+            otherCount: 5,
+            otherCwds: [
+              '/home/user/projects/alpha',
+              '/home/user/projects/beta',
+              '/home/user/projects/gamma',
+              '/home/user/projects/delta',
+              '/home/user/projects/epsilon'
+            ]
+          }
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByTestId('other-status-badge'));
+
+    expect(screen.getByTestId('other-session-popover')).toHaveTextContent('alpha');
+    expect(screen.getByTestId('other-session-popover')).toHaveTextContent('gamma');
+    expect(screen.getByTestId('other-session-popover')).toHaveTextContent('+2');
   });
 
   it('does not show the other-session badge when there are no other sessions', () => {

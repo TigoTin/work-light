@@ -80,14 +80,24 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
   const cwd = useSyncExternalStore(store.subscribe, store.getCwdSnapshot, store.getCwdSnapshot);
   const other = useSyncExternalStore(store.subscribe, store.getOtherSnapshot, store.getOtherSnapshot);
   const [pinned, setPinned] = useState(true);
+  const [otherOpen, setOtherOpen] = useState(false);
   const label = statusLabel[status];
   const lamps = activeLamp(status);
   const workspace = workspaceName(cwd);
   const otherBadgeTitle = other.count > 0 ? otherStatusTitle(other.count, other.status, other.cwds) : '';
+  const otherWorkspaceNames = other.cwds.map(workspaceName).filter(Boolean);
+  const visibleOtherWorkspaceNames = otherWorkspaceNames.slice(0, 3);
+  const hiddenOtherCount = Math.max(0, other.count - visibleOtherWorkspaceNames.length);
 
   useEffect(() => {
     void placeWindowAtTopCenter();
   }, []);
+
+  useEffect(() => {
+    if (other.count === 0) {
+      setOtherOpen(false);
+    }
+  }, [other.count]);
 
   function togglePin() {
     setPinned((current) => {
@@ -106,14 +116,40 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
         workspaceCwd={cwd}
         otherStatusBadge={
           other.count > 0 ? (
-            <span
+            <button
+              type="button"
               className={`other-status-badge other-status-${otherStatusClass(other.status)}`}
               title={otherBadgeTitle}
               aria-label={otherBadgeTitle}
+              aria-expanded={otherOpen}
               data-testid="other-status-badge"
+              onClick={() => setOtherOpen((open) => !open)}
             >
               +{other.count}
-            </span>
+            </button>
+          ) : undefined
+        }
+        otherStatusPopover={
+          other.count > 0 && otherOpen ? (
+            <div
+              className="other-session-popover"
+              data-testid="other-session-popover"
+              role="list"
+              aria-label={otherBadgeTitle}
+            >
+              {visibleOtherWorkspaceNames.map((name, index) => (
+                <span className="other-session-item" role="listitem" key={`${name}-${index}`}>
+                  <span className={`other-session-dot other-status-${otherStatusClass(other.status)}`} aria-hidden="true" />
+                  <span className="other-session-name">{name}</span>
+                </span>
+              ))}
+              {hiddenOtherCount > 0 ? (
+                <span className="other-session-item" role="listitem">
+                  <span className="other-session-dot other-status-offline" aria-hidden="true" />
+                  <span className="other-session-name">+{hiddenOtherCount}</span>
+                </span>
+              ) : undefined}
+            </div>
           ) : undefined
         }
         onTogglePin={togglePin}

@@ -7,6 +7,7 @@ type PixelShellProps = {
   workspaceName?: string;
   workspaceCwd?: string;
   otherStatusBadge?: ReactNode;
+  otherStatusPopover?: ReactNode;
   children: ReactNode;
   onTogglePin: () => void;
   onMinimize: () => void;
@@ -27,6 +28,7 @@ export function PixelShell({
   workspaceName = '',
   workspaceCwd = '',
   otherStatusBadge,
+  otherStatusPopover,
   children,
   onTogglePin,
   onMinimize,
@@ -63,6 +65,7 @@ export function PixelShell({
         </div>
         <span className="connection-dot" title={`connection ${status}`} aria-label={`connection ${status}`} />
       </header>
+      {otherStatusPopover}
 
       <div className="shell-body">{children}</div>
 

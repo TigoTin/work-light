@@ -70,14 +70,82 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
+          arch="$(go env GOARCH)"
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" == "$GITHUB_REF_NAME" ]]; then
+            version="0.0.0"
+          fi
           binary=$(find dist -maxdepth 1 -type f -name '${{ matrix.binary }}' | head -n 1)
           if [[ -z "$binary" ]]; then
             echo "No executable found for pattern: ${{ matrix.binary }}" >&2
             exit 1
           fi
           chmod +x "$binary" || true
-          package="work-light-${{ matrix.platform }}-$(go env GOARCH).tar.gz"
-          tar -C dist -czf "release/$package" "$(basename "$binary")"
+          case "${{ matrix.platform }}" in
+            windows)
+              powershell -NoProfile -Command "Compress-Archive -Path 'dist/work-light.exe' -DestinationPath \"release/work-light-windows-$arch.zip\" -Force"
+              ;;
+            macos)
+              app_dir="release/Work Light.app"
+              mkdir -p "$app_dir/Contents/MacOS"
+              cp "$binary" "$app_dir/Contents/MacOS/work-light"
+              chmod +x "$app_dir/Contents/MacOS/work-light"
+              cat > "$app_dir/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>work-light</string>
+            <key>CFBundleIdentifier</key>
+            <string>dev.tigotin.work-light</string>
+            <key>CFBundleName</key>
+            <string>Work Light</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>$version</string>
+          </dict>
+          </plist>
+          PLIST
+              (cd release && zip -qry "work-light-macos-$arch.app.zip" "Work Light.app")
+              rm -rf "$app_dir"
+              ;;
+            linux)
+              deb_arch="$arch"
+              if [[ "$deb_arch" == "amd64" || "$deb_arch" == "arm64" ]]; then
+                :
+              else
+                echo "Unsupported Debian architecture: $deb_arch" >&2
+                exit 1
+              fi
+              package_root="release/deb/work-light_${version}_${deb_arch}"
+              mkdir -p "$package_root/DEBIAN" "$package_root/usr/bin" "$package_root/usr/share/applications"
+              cp "$binary" "$package_root/usr/bin/work-light"
+              chmod 0755 "$package_root/usr/bin/work-light"
+              cat > "$package_root/DEBIAN/control" <<CONTROL
+          Package: work-light
+          Version: $version
+          Section: utils
+          Priority: optional
+          Architecture: $deb_arch
+          Maintainer: TigoTin
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0
+          Description: Floating Codex hook status light
+           Work Light displays local Codex hook status as a compact desktop signal.
+          CONTROL
+              cat > "$package_root/usr/share/applications/work-light.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Work Light
+          Exec=work-light
+          Terminal=false
+          Categories=Utility;Development;
+          DESKTOP
+              dpkg-deb --build "$package_root" "release/work-light-linux-$deb_arch.deb"
+              rm -rf release/deb
+              ;;
+          esac
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -98,6 +166,12 @@ jobs:
         with:
           path: release
           merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd release
+          sha256sum * > checksums.txt
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
