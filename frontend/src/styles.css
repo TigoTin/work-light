@@ -212,6 +212,26 @@ button {
   white-space: nowrap;
 }
 
+.other-session-button {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.other-session-button:focus-visible {
+  outline: 1px solid #fff8c7;
+  outline-offset: 1px;
+}
+
 .other-session-dot {
   width: 6px;
   height: 6px;

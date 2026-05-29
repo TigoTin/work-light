@@ -173,6 +173,35 @@ describe('App signal states', () => {
     expect(screen.getByTestId('other-session-popover')).toHaveTextContent('beta');
   });
 
+  it('switches the displayed workspace when an other-session item is clicked', () => {
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('codexStatusChanged', {
+          detail: {
+            status: 'idle',
+            cwd: '/home/user/projects/work-light',
+            otherStatus: 'waiting_confirmation',
+            otherCount: 1,
+            otherCwds: ['/home/user/projects/alpha'],
+            sessions: [
+              { sessionId: 'current', cwd: '/home/user/projects/work-light', status: 'idle', updatedAt: '2026-05-30T10:00:00Z' },
+              { sessionId: 'other', cwd: '/home/user/projects/alpha', status: 'waiting_confirmation', updatedAt: '2026-05-30T10:00:01Z' }
+            ]
+          }
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByTestId('other-status-badge'));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to workspace alpha' }));
+
+    expect(screen.getByTestId('workspace-label')).toHaveTextContent('alpha');
+    expect(screen.getByLabelText('Codex status WAIT')).toHaveTextContent('WAIT');
+    expect(screen.getByTestId('other-status-badge')).toHaveTextContent('+1');
+  });
+
   it('summarizes hidden workspaces in the other-session popover', () => {
     render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
 

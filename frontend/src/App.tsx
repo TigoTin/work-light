@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Window } from '@wailsio/runtime';
 import { PixelShell } from './components/PixelShell';
 import { SignalLamp } from './components/SignalLamp';
-import { type CodexStatus, createStatusStore, statusStore } from './statusStore';
+import { type CodexStatus, type SessionSnapshot, createStatusStore, statusStore } from './statusStore';
 import { placeWindowAtTopCenter } from './windowPlacement';
 import './styles.css';
 
@@ -25,6 +25,56 @@ function activeLamp(status: CodexStatus) {
     yellow: status === 'waiting_confirmation' || status === 'working',
     green: status === 'idle' || status === 'working'
   };
+}
+
+function statusPriority(status: CodexStatus) {
+  switch (status) {
+    case 'error':
+      return 4;
+    case 'waiting_confirmation':
+      return 3;
+    case 'working':
+      return 2;
+    case 'idle':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function statusForWorkspace(sessions: SessionSnapshot[], targetCwd: string) {
+  return sessions
+    .filter((session) => session.cwd === targetCwd)
+    .reduce<CodexStatus | undefined>((best, session) => {
+      if (!best || statusPriority(session.status) > statusPriority(best)) {
+        return session.status;
+      }
+      return best;
+    }, undefined);
+}
+
+function statusForWorkspaces(sessions: SessionSnapshot[], targetCwds: string[], fallback: CodexStatus | '') {
+  const statuses = targetCwds.map((targetCwd) => statusForWorkspace(sessions, targetCwd)).filter((status): status is CodexStatus => Boolean(status));
+
+  return statuses.reduce<CodexStatus | ''>((best, status) => {
+    if (!best || statusPriority(status) > statusPriority(best)) {
+      return status;
+    }
+    return best;
+  }, fallback);
+}
+
+function uniqueOtherCwds(sessions: SessionSnapshot[], displayCwd: string, fallbackCwds: string[]) {
+  const seen = new Set<string>();
+  const cwds = sessions.length > 0 ? sessions.map((session) => session.cwd) : fallbackCwds;
+
+  return cwds.filter((cwd) => {
+    if (!cwd || cwd === displayCwd || seen.has(cwd)) {
+      return false;
+    }
+    seen.add(cwd);
+    return true;
+  });
 }
 
 function workspaceName(cwd: string) {
@@ -79,25 +129,33 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
   const status = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const cwd = useSyncExternalStore(store.subscribe, store.getCwdSnapshot, store.getCwdSnapshot);
   const other = useSyncExternalStore(store.subscribe, store.getOtherSnapshot, store.getOtherSnapshot);
+  const sessions = useSyncExternalStore(store.subscribe, store.getSessionsSnapshot, store.getSessionsSnapshot);
   const [pinned, setPinned] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
-  const label = statusLabel[status];
-  const lamps = activeLamp(status);
-  const workspace = workspaceName(cwd);
-  const otherBadgeTitle = other.count > 0 ? otherStatusTitle(other.count, other.status, other.cwds) : '';
-  const otherWorkspaceNames = other.cwds.map(workspaceName).filter(Boolean);
+  const [selectedCwd, setSelectedCwd] = useState('');
+  const selectedStatus = selectedCwd ? statusForWorkspace(sessions, selectedCwd) : undefined;
+  const displayStatus = selectedStatus ?? status;
+  const displayCwd = selectedStatus ? selectedCwd : cwd;
+  const displayOtherCwds = uniqueOtherCwds(sessions, displayCwd, other.cwds);
+  const label = statusLabel[displayStatus];
+  const lamps = activeLamp(displayStatus);
+  const workspace = workspaceName(displayCwd);
+  const otherCount = sessions.length > 0 ? sessions.filter((session) => session.cwd !== displayCwd).length : other.count;
+  const otherStatus = sessions.length > 0 ? statusForWorkspaces(sessions, displayOtherCwds, other.status) : other.status;
+  const otherBadgeTitle = otherCount > 0 ? otherStatusTitle(otherCount, otherStatus, displayOtherCwds) : '';
+  const otherWorkspaceNames = displayOtherCwds.map(workspaceName).filter(Boolean);
   const visibleOtherWorkspaceNames = otherWorkspaceNames.slice(0, 3);
-  const hiddenOtherCount = Math.max(0, other.count - visibleOtherWorkspaceNames.length);
+  const hiddenOtherCount = Math.max(0, otherCount - visibleOtherWorkspaceNames.length);
 
   useEffect(() => {
     void placeWindowAtTopCenter();
   }, []);
 
   useEffect(() => {
-    if (other.count === 0) {
+    if (otherCount === 0) {
       setOtherOpen(false);
     }
-  }, [other.count]);
+  }, [otherCount]);
 
   function togglePin() {
     setPinned((current) => {
@@ -110,27 +168,27 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
   return (
     <main className="app-root">
       <PixelShell
-        status={status}
+        status={displayStatus}
         pinned={pinned}
         workspaceName={workspace}
-        workspaceCwd={cwd}
+        workspaceCwd={displayCwd}
         otherStatusBadge={
-          other.count > 0 ? (
+          otherCount > 0 ? (
             <button
               type="button"
-              className={`other-status-badge other-status-${otherStatusClass(other.status)}`}
+              className={`other-status-badge other-status-${otherStatusClass(otherStatus)}`}
               title={otherBadgeTitle}
               aria-label={otherBadgeTitle}
               aria-expanded={otherOpen}
               data-testid="other-status-badge"
               onClick={() => setOtherOpen((open) => !open)}
             >
-              +{other.count}
+              +{otherCount}
             </button>
           ) : undefined
         }
         otherStatusPopover={
-          other.count > 0 && otherOpen ? (
+          otherCount > 0 && otherOpen ? (
             <div
               className="other-session-popover"
               data-testid="other-session-popover"
@@ -139,8 +197,18 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
             >
               {visibleOtherWorkspaceNames.map((name, index) => (
                 <span className="other-session-item" role="listitem" key={`${name}-${index}`}>
-                  <span className={`other-session-dot other-status-${otherStatusClass(other.status)}`} aria-hidden="true" />
-                  <span className="other-session-name">{name}</span>
+                  <button
+                    className="other-session-button"
+                    type="button"
+                    aria-label={`Switch to workspace ${name}`}
+                    onClick={() => {
+                      setSelectedCwd(displayOtherCwds[index] ?? '');
+                      setOtherOpen(false);
+                    }}
+                  >
+                    <span className={`other-session-dot other-status-${otherStatusClass(statusForWorkspace(sessions, displayOtherCwds[index] ?? '') ?? otherStatus)}`} aria-hidden="true" />
+                    <span className="other-session-name">{name}</span>
+                  </button>
                 </span>
               ))}
               {hiddenOtherCount > 0 ? (
@@ -155,17 +223,17 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
         onTogglePin={togglePin}
         onMinimize={() => void Window.Minimise()}
         onClearError={() => {
-          if (status === 'error') {
+          if (displayStatus === 'error') {
             store.setStatus('idle');
           }
         }}
       >
         <div className="lamp-row lamp-row-horizontal" aria-label="Codex signal lamps" data-testid="lamp-row">
-          <SignalLamp color="red" status={status} active={lamps.red} />
-          <SignalLamp color="yellow" status={status} active={lamps.yellow} />
-          <SignalLamp color="green" status={status} active={lamps.green} />
+          <SignalLamp color="red" status={displayStatus} active={lamps.red} />
+          <SignalLamp color="yellow" status={displayStatus} active={lamps.yellow} />
+          <SignalLamp color="green" status={displayStatus} active={lamps.green} />
         </div>
-        <StatusPulse status={status} />
+        <StatusPulse status={displayStatus} />
         <div className="status-band" aria-label={`Codex status ${label}`} title={label} data-testid="status-label">
           {label}
         </div>

@@ -93,4 +93,24 @@ describe('statusStore', () => {
     });
     store.destroy();
   });
+
+  it('stores session snapshots from Wails events with Go struct fields in data', () => {
+    const store = createStatusStore('idle');
+    (window as WailsDispatchWindow)._wails?.dispatchWailsEvent?.({
+      name: 'codexStatusChanged',
+      data: {
+        Status: 'idle',
+        Sessions: [
+          { SessionID: 'one', CWD: '/home/user/projects/alpha', Status: 'working', UpdatedAt: '2026-05-30T10:00:00Z' },
+          { SessionID: 'two', CWD: '/home/user/projects/beta', Status: 'waiting_confirmation', UpdatedAt: '2026-05-30T10:00:01Z' }
+        ]
+      }
+    });
+
+    expect(store.getSessionsSnapshot()).toEqual([
+      { sessionId: 'one', cwd: '/home/user/projects/alpha', status: 'working', updatedAt: '2026-05-30T10:00:00Z' },
+      { sessionId: 'two', cwd: '/home/user/projects/beta', status: 'waiting_confirmation', updatedAt: '2026-05-30T10:00:01Z' }
+    ]);
+    store.destroy();
+  });
 });

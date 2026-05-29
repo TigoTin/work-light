@@ -6,6 +6,12 @@ export type OtherStatusSnapshot = {
   count: number;
   cwds: string[];
 };
+export type SessionSnapshot = {
+  sessionId: string;
+  cwd: string;
+  status: CodexStatus;
+  updatedAt: string;
+};
 
 type Listener = () => void;
 type RuntimeUnsubscribe = () => void;
@@ -115,6 +121,52 @@ function extractCwd(payload: unknown): string | undefined {
   return undefined;
 }
 
+function extractStringField(record: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+  return '';
+}
+
+function extractSessions(payload: unknown): SessionSnapshot[] | undefined {
+  if (Array.isArray(payload)) {
+    const sessions = payload.flatMap((item) => {
+      if (!item || typeof item !== 'object') {
+        return [];
+      }
+      const record = item as Record<string, unknown>;
+      const status = normalizeCodexStatus(record.status ?? record.Status);
+      if (!status) {
+        return [];
+      }
+
+      return [
+        {
+          sessionId: extractStringField(record, 'sessionId', 'SessionID', 'session_id'),
+          cwd: extractStringField(record, 'cwd', 'CWD', 'Cwd'),
+          status,
+          updatedAt: extractStringField(record, 'updatedAt', 'UpdatedAt', 'updated_at')
+        }
+      ];
+    });
+    return sessions.length > 0 ? sessions : undefined;
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const sessions = record.sessions ?? record.Sessions;
+    if (sessions !== undefined) {
+      return extractSessions(sessions) ?? [];
+    }
+    return extractSessions(record.data ?? record.Data ?? record.detail ?? record.Detail);
+  }
+
+  return undefined;
+}
+
 function subscribeRuntime(handler: EventHandler): RuntimeUnsubscribe | undefined {
   const currentWindow = window as WailsLikeWindow;
   const eventsOn =
@@ -134,6 +186,7 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
   let currentStatus = initialStatus;
   let currentCwd = initialCwd;
   let currentOther: OtherStatusSnapshot = { status: '', count: 0, cwds: [] };
+  let currentSessions: SessionSnapshot[] = [];
   const listeners = new Set<Listener>();
 
   const notify = () => {
@@ -174,10 +227,33 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
     notify();
   };
 
+  const setSessions = (nextSessions: SessionSnapshot[]) => {
+    const sessionsChanged =
+      nextSessions.length !== currentSessions.length ||
+      nextSessions.some((session, index) => {
+        const current = currentSessions[index];
+        return (
+          !current ||
+          session.sessionId !== current.sessionId ||
+          session.cwd !== current.cwd ||
+          session.status !== current.status ||
+          session.updatedAt !== current.updatedAt
+        );
+      });
+
+    if (!sessionsChanged) {
+      return;
+    }
+
+    currentSessions = nextSessions;
+    notify();
+  };
+
   const handlePayload = (payload: unknown) => {
     const nextStatus = extractStatus(payload);
     const nextCwd = extractCwd(payload);
     const nextOther = extractOther(payload);
+    const nextSessions = extractSessions(payload);
     if (nextStatus) {
       setStatus(nextStatus);
     }
@@ -186,6 +262,9 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
     }
     if (nextOther) {
       setOther(nextOther);
+    }
+    if (nextSessions) {
+      setSessions(nextSessions);
     }
   };
 
@@ -200,6 +279,7 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
     getSnapshot: () => currentStatus,
     getCwdSnapshot: () => currentCwd,
     getOtherSnapshot: () => currentOther,
+    getSessionsSnapshot: () => currentSessions,
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => {

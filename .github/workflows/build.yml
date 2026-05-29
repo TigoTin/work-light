@@ -147,6 +147,10 @@ jobs:
               ;;
           esac
 
+      - name: Validate package contents
+        shell: bash
+        run: bash scripts/validate-release-asset.sh "${{ matrix.platform }}" release "$(go env GOARCH)"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"html"
 	"log"
 	"net"
 	"net/http"
@@ -56,7 +57,25 @@ func main() {
 
 	listener, err := net.Listen("tcp", hookAddr)
 	if err != nil {
-		log.Fatalf("start hook listener %s: %v", hookAddr, err)
+		message := hookListenErrorMessage(hookAddr, err)
+		log.Print(message)
+		app.Window.NewWithOptions(application.WebviewWindowOptions{
+			Title:         "Work Light Hook Error",
+			Name:          "work-light-hook-error",
+			Width:         420,
+			Height:        260,
+			MinWidth:      420,
+			MinHeight:     260,
+			MaxWidth:      420,
+			MaxHeight:     260,
+			AlwaysOnTop:   true,
+			DisableResize: true,
+			HTML:          hookListenErrorHTML(message),
+		})
+		if err := app.Run(); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	defer listener.Close()
 
@@ -102,6 +121,30 @@ func dedupedEmitter(emit codexstatus.Emitter) codexstatus.Emitter {
 		hasLast = true
 		emit(event)
 	}
+}
+
+func hookListenErrorMessage(addr string, err error) string {
+	return "Work Light could not start the Codex hook listener on " + addr + ".\n\n" +
+		"Another process is already using this port. Close the other Work Light instance or free the port, then start Work Light again.\n\n" +
+		"Details: " + err.Error()
+}
+
+func hookListenErrorHTML(message string) string {
+	return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body{margin:0;padding:24px;background:#151b1b;color:#fff8c7;font:14px "Courier New",monospace}
+h1{margin:0 0 14px;font-size:18px;color:#ff6b5f}
+pre{white-space:pre-wrap;line-height:1.45}
+</style>
+</head>
+<body>
+<h1>Hook listener unavailable</h1>
+<pre>` + html.EscapeString(message) + `</pre>
+</body>
+</html>`
 }
 
 func emitTimeoutChanges(ctx context.Context, aggregator *codexstatus.Aggregator, emit codexstatus.Emitter) {
