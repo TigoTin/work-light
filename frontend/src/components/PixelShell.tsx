@@ -6,6 +6,7 @@ type PixelShellProps = {
   pinned: boolean;
   workspaceName?: string;
   workspaceCwd?: string;
+  otherStatusBadge?: ReactNode;
   children: ReactNode;
   onTogglePin: () => void;
   onMinimize: () => void;
@@ -25,6 +26,7 @@ export function PixelShell({
   pinned,
   workspaceName = '',
   workspaceCwd = '',
+  otherStatusBadge,
   children,
   onTogglePin,
   onMinimize,
@@ -46,8 +48,9 @@ export function PixelShell({
     <section className={className} data-testid="signal-shell" aria-label="Codex Signal floating status window">
       <div className="shell-frame" aria-hidden="true" />
       <header className="shell-header">
-        <div className="pixel-title">
+        <div className={`pixel-title${otherStatusBadge ? ' pixel-title-with-badge' : ''}`}>
           <span className="brand-label">CODEX</span>
+          {otherStatusBadge}
           <span
             className={`workspace-label${workspaceName ? '' : ' workspace-label-empty'}`}
             title={workspaceCwd}

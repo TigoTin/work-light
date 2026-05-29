@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
@@ -101,19 +101,19 @@ describe('App signal states', () => {
   });
 
   it('shows only the current workspace directory from a Linux cwd with the full cwd as tooltip', () => {
-    render(<App initialStatus="idle" initialCwd="/home/ding/workspaceWsl/my/work-light" />);
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
 
     const workspace = screen.getByTestId('workspace-label');
     expect(workspace).toHaveTextContent('work-light');
-    expect(workspace).toHaveAttribute('title', '/home/ding/workspaceWsl/my/work-light');
+    expect(workspace).toHaveAttribute('title', '/home/user/projects/work-light');
   });
 
   it('shows only the current workspace directory from a Windows cwd', () => {
-    render(<App initialStatus="idle" initialCwd={'C:\\Users\\ding\\project\\work-light'} />);
+    render(<App initialStatus="idle" initialCwd={'C:\\Users\\dev\\project\\work-light'} />);
 
     const workspace = screen.getByTestId('workspace-label');
     expect(workspace).toHaveTextContent('work-light');
-    expect(workspace).toHaveAttribute('title', 'C:\\Users\\ding\\project\\work-light');
+    expect(workspace).toHaveAttribute('title', 'C:\\Users\\dev\\project\\work-light');
   });
 
   it('keeps the workspace label collapsible without changing lamp or status anchors', () => {
@@ -123,6 +123,48 @@ describe('App signal states', () => {
     expect(screen.getByTestId('workspace-label').closest('.shell-header')).not.toBeNull();
     expect(screen.getByTestId('lamp-row')).toHaveClass('lamp-row-horizontal');
     expect(screen.getByTestId('status-label')).toHaveClass('status-band');
+  });
+
+  it('shows a compact other-session badge with status class and workspace basenames', () => {
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('codexStatusChanged', {
+          detail: {
+            status: 'idle',
+            otherStatus: 'error',
+            otherCount: 2,
+            otherCwds: ['/home/user/projects/alpha', '/home/user/projects/beta']
+          }
+        })
+      );
+    });
+
+    const badge = screen.getByTestId('other-status-badge');
+    expect(badge).toHaveTextContent('+2');
+    expect(badge).toHaveClass('other-status-badge', 'other-status-error');
+    expect(badge).toHaveAttribute('title', 'Other sessions: 2; highest status: error; workspaces: alpha, beta');
+    expect(badge).toHaveAccessibleName('Other sessions: 2; highest status: error; workspaces: alpha, beta');
+  });
+
+  it('does not show the other-session badge when there are no other sessions', () => {
+    render(<App initialStatus="idle" initialCwd="/home/user/projects/work-light" />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('codexStatusChanged', {
+          detail: {
+            status: 'idle',
+            otherStatus: 'idle',
+            otherCount: 0,
+            otherCwds: []
+          }
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('other-status-badge')).toBeNull();
   });
 
   it('places the compact window at the top center of the primary work area after mount', async () => {

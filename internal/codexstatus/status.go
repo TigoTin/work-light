@@ -35,12 +35,15 @@ type SessionSnapshot struct {
 }
 
 type StatusEvent struct {
-	Status    Status            `json:"status"`
-	SessionID string            `json:"sessionId"`
-	CWD       string            `json:"cwd"`
-	UpdatedAt time.Time         `json:"updatedAt"`
-	Label     string            `json:"label"`
-	Sessions  []SessionSnapshot `json:"sessions"`
+	Status      Status            `json:"status"`
+	SessionID   string            `json:"sessionId"`
+	CWD         string            `json:"cwd"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
+	Label       string            `json:"label"`
+	OtherStatus Status            `json:"otherStatus,omitempty"`
+	OtherCount  int               `json:"otherCount"`
+	OtherCWDs   []string          `json:"otherCwds,omitempty"`
+	Sessions    []SessionSnapshot `json:"sessions"`
 }
 
 type Aggregator struct {
@@ -124,27 +127,70 @@ func (a *Aggregator) currentLocked(now time.Time) StatusEvent {
 	status := StatusOffline
 	var display SessionSnapshot
 	hasDisplay := false
-	for _, session := range active {
-		if !hasDisplay || statusPriority(session.Status) > statusPriority(display.Status) {
-			display = session
-			hasDisplay = true
-		}
-		if statusPriority(session.Status) > statusPriority(status) {
-			status = session.Status
+	primaryCWD, hasPrimary := primaryCWD(active)
+	if hasPrimary {
+		for _, session := range active {
+			if session.CWD != primaryCWD {
+				continue
+			}
+			if !hasDisplay || statusPriority(session.Status) > statusPriority(display.Status) {
+				display = session
+				hasDisplay = true
+			}
+			if statusPriority(session.Status) > statusPriority(status) {
+				status = session.Status
+			}
 		}
 	}
 
+	otherStatus := Status("")
+	otherCount := 0
+	var otherCWDs []string
+	seenOtherCWDs := make(map[string]bool)
+	for _, session := range active {
+		if !hasPrimary || session.CWD == primaryCWD {
+			continue
+		}
+		otherCount++
+		if statusPriority(session.Status) > statusPriority(otherStatus) {
+			otherStatus = session.Status
+		}
+		if !seenOtherCWDs[session.CWD] {
+			otherCWDs = append(otherCWDs, session.CWD)
+			seenOtherCWDs[session.CWD] = true
+		}
+	}
+
+	if otherCount == 0 {
+		otherCWDs = nil
+	}
+
 	event := StatusEvent{
-		Status:    status,
-		UpdatedAt: now,
-		Label:     labelForStatus(status),
-		Sessions:  active,
+		Status:      status,
+		UpdatedAt:   now,
+		Label:       labelForStatus(status),
+		OtherStatus: otherStatus,
+		OtherCount:  otherCount,
+		OtherCWDs:   otherCWDs,
+		Sessions:    active,
 	}
 	if hasDisplay {
 		event.SessionID = display.SessionID
 		event.CWD = display.CWD
 	}
 	return event
+}
+
+func primaryCWD(active []SessionSnapshot) (string, bool) {
+	if len(active) == 0 {
+		return "", false
+	}
+	for _, session := range active {
+		if session.CWD != "" {
+			return session.CWD, true
+		}
+	}
+	return active[0].CWD, true
 }
 
 func (a *Aggregator) isActive(session SessionSnapshot, now time.Time) bool {

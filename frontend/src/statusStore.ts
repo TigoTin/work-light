@@ -1,6 +1,11 @@
 import { Events } from '@wailsio/runtime';
 
 export type CodexStatus = 'idle' | 'working' | 'waiting_confirmation' | 'error' | 'offline';
+export type OtherStatusSnapshot = {
+  status: CodexStatus | '';
+  count: number;
+  cwds: string[];
+};
 
 type Listener = () => void;
 type RuntimeUnsubscribe = () => void;
@@ -25,9 +30,18 @@ function isCodexStatus(value: unknown): value is CodexStatus {
   return typeof value === 'string' && validStatuses.includes(value as CodexStatus);
 }
 
+function normalizeCodexStatus(value: unknown): CodexStatus | undefined {
+  if (value === 'waiting') {
+    return 'waiting_confirmation';
+  }
+
+  return isCodexStatus(value) ? value : undefined;
+}
+
 function extractStatus(payload: unknown): CodexStatus | undefined {
-  if (isCodexStatus(payload)) {
-    return payload;
+  const status = normalizeCodexStatus(payload);
+  if (status) {
+    return status;
   }
 
   if (Array.isArray(payload)) {
@@ -46,6 +60,38 @@ function extractStatus(payload: unknown): CodexStatus | undefined {
         record.state ??
         record.State
     );
+  }
+
+  return undefined;
+}
+
+function extractOther(payload: unknown): Partial<OtherStatusSnapshot> | undefined {
+  if (Array.isArray(payload)) {
+    return extractOther(payload[0]);
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const otherStatus = record.otherStatus ?? record.OtherStatus;
+    const otherCount = record.otherCount ?? record.OtherCount;
+    const otherCwds = record.otherCwds ?? record.OtherCWDs;
+    const next: Partial<OtherStatusSnapshot> = {};
+
+    if (otherStatus !== undefined) {
+      next.status = normalizeCodexStatus(otherStatus) ?? '';
+    }
+    if (typeof otherCount === 'number' && Number.isFinite(otherCount)) {
+      next.count = Math.max(0, otherCount);
+    }
+    if (Array.isArray(otherCwds)) {
+      next.cwds = otherCwds.filter((cwd): cwd is string => typeof cwd === 'string');
+    }
+
+    if ('status' in next || 'count' in next || 'cwds' in next) {
+      return next;
+    }
+
+    return extractOther(record.data ?? record.Data ?? record.detail ?? record.Detail);
   }
 
   return undefined;
@@ -87,6 +133,7 @@ function subscribeRuntime(handler: EventHandler): RuntimeUnsubscribe | undefined
 export function createStatusStore(initialStatus: CodexStatus = 'offline', initialCwd = '') {
   let currentStatus = initialStatus;
   let currentCwd = initialCwd;
+  let currentOther: OtherStatusSnapshot = { status: '', count: 0, cwds: [] };
   const listeners = new Set<Listener>();
 
   const notify = () => {
@@ -113,14 +160,32 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
     notify();
   };
 
+  const setOther = (nextOther: Partial<OtherStatusSnapshot>) => {
+    const status = nextOther.status ?? currentOther.status;
+    const count = nextOther.count ?? currentOther.count;
+    const cwds = nextOther.cwds ?? currentOther.cwds;
+    const cwdsChanged = cwds.length !== currentOther.cwds.length || cwds.some((cwd, index) => cwd !== currentOther.cwds[index]);
+
+    if (status === currentOther.status && count === currentOther.count && !cwdsChanged) {
+      return;
+    }
+
+    currentOther = { status, count, cwds };
+    notify();
+  };
+
   const handlePayload = (payload: unknown) => {
     const nextStatus = extractStatus(payload);
     const nextCwd = extractCwd(payload);
+    const nextOther = extractOther(payload);
     if (nextStatus) {
       setStatus(nextStatus);
     }
     if (nextCwd !== undefined) {
       setCwd(nextCwd);
+    }
+    if (nextOther) {
+      setOther(nextOther);
     }
   };
 
@@ -134,6 +199,7 @@ export function createStatusStore(initialStatus: CodexStatus = 'offline', initia
   return {
     getSnapshot: () => currentStatus,
     getCwdSnapshot: () => currentCwd,
+    getOtherSnapshot: () => currentOther,
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => {

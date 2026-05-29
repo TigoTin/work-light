@@ -109,8 +109,52 @@ button {
   white-space: nowrap;
 }
 
+.pixel-title-with-badge {
+  grid-template-columns: max-content 20px minmax(0, 1fr);
+}
+
 .brand-label {
   --wails-draggable: drag;
+}
+
+.other-status-badge {
+  --wails-draggable: drag;
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 11px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #101919;
+  background: #7a8586;
+  border: 1px solid #0b1514;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+.other-status-error {
+  background: #fb3b36;
+}
+
+.other-status-waiting {
+  background: #ffd34a;
+}
+
+.other-status-working {
+  background: #43d6c6;
+}
+
+.other-status-idle {
+  background: #67ec86;
+}
+
+.other-status-offline {
+  background: #7a8586;
 }
 
 .connection-dot {

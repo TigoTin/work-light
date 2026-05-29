@@ -26,12 +26,12 @@ describe('statusStore', () => {
 
     window.dispatchEvent(
       new CustomEvent('codexStatusChanged', {
-        detail: { status: 'working', cwd: '/home/ding/workspaceWsl/my/work-light' }
+        detail: { status: 'working', cwd: '/home/user/projects/work-light' }
       })
     );
 
     expect(store.getSnapshot()).toBe('working');
-    expect(store.getCwdSnapshot()).toBe('/home/ding/workspaceWsl/my/work-light');
+    expect(store.getCwdSnapshot()).toBe('/home/user/projects/work-light');
   });
 
   it('subscribes through window.runtime.EventsOn when available', () => {
@@ -65,11 +65,32 @@ describe('statusStore', () => {
     const store = createStatusStore('working');
     (window as WailsDispatchWindow)._wails?.dispatchWailsEvent?.({
       name: 'codexStatusChanged',
-      data: { Status: 'idle', CWD: '/home/ding/workspaceWsl/my/work-light' }
+      data: { Status: 'idle', CWD: '/home/user/projects/work-light' }
     });
 
     expect(store.getSnapshot()).toBe('idle');
-    expect(store.getCwdSnapshot()).toBe('/home/ding/workspaceWsl/my/work-light');
+    expect(store.getCwdSnapshot()).toBe('/home/user/projects/work-light');
+    store.destroy();
+  });
+
+  it('updates other session snapshots from Wails events with Go struct fields in data', () => {
+    const store = createStatusStore('idle');
+    (window as WailsDispatchWindow)._wails?.dispatchWailsEvent?.({
+      name: 'codexStatusChanged',
+      data: {
+        Status: 'idle',
+        OtherStatus: 'error',
+        OtherCount: 2,
+        OtherCWDs: ['/home/user/projects/alpha', '/home/user/projects/beta']
+      }
+    });
+
+    expect(store.getSnapshot()).toBe('idle');
+    expect(store.getOtherSnapshot()).toEqual({
+      status: 'error',
+      count: 2,
+      cwds: ['/home/user/projects/alpha', '/home/user/projects/beta']
+    });
     store.destroy();
   });
 });

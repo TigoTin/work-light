@@ -38,6 +38,19 @@ function workspaceName(cwd: string) {
   return parts.at(-1) ?? withoutTrailingSlash;
 }
 
+function otherStatusClass(status: CodexStatus | '') {
+  if (status === 'waiting_confirmation') {
+    return 'waiting';
+  }
+
+  return status || 'offline';
+}
+
+function otherStatusTitle(count: number, status: CodexStatus | '', cwds: string[]) {
+  const workspaceList = cwds.map(workspaceName).filter(Boolean).join(', ') || 'none';
+  return `Other sessions: ${count}; highest status: ${status || 'unknown'}; workspaces: ${workspaceList}`;
+}
+
 function StatusPulse({ status }: { status: CodexStatus }) {
   const bits = status === 'working' ? 3 : status === 'error' ? 2 : 1;
 
@@ -65,10 +78,12 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
   );
   const status = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const cwd = useSyncExternalStore(store.subscribe, store.getCwdSnapshot, store.getCwdSnapshot);
+  const other = useSyncExternalStore(store.subscribe, store.getOtherSnapshot, store.getOtherSnapshot);
   const [pinned, setPinned] = useState(true);
   const label = statusLabel[status];
   const lamps = activeLamp(status);
   const workspace = workspaceName(cwd);
+  const otherBadgeTitle = other.count > 0 ? otherStatusTitle(other.count, other.status, other.cwds) : '';
 
   useEffect(() => {
     void placeWindowAtTopCenter();
@@ -89,6 +104,18 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
         pinned={pinned}
         workspaceName={workspace}
         workspaceCwd={cwd}
+        otherStatusBadge={
+          other.count > 0 ? (
+            <span
+              className={`other-status-badge other-status-${otherStatusClass(other.status)}`}
+              title={otherBadgeTitle}
+              aria-label={otherBadgeTitle}
+              data-testid="other-status-badge"
+            >
+              +{other.count}
+            </span>
+          ) : undefined
+        }
         onTogglePin={togglePin}
         onMinimize={() => void Window.Minimise()}
         onClearError={() => {

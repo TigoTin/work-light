@@ -67,12 +67,42 @@ func TestAggregatorUsesPriorityAcrossActiveSessions(t *testing.T) {
 	}
 }
 
-func TestAggregatorDisplaySessionUsesHighestPriorityBeforeNewest(t *testing.T) {
+func TestAggregatorUsesMostRecentCWDForPrimaryStatusAndSummarizesOthers(t *testing.T) {
 	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
 	agg := NewAggregator(time.Minute)
 
 	agg.Apply(HookPayload{SessionID: "waiting-old", CWD: "/repo/high", HookEventName: "PermissionRequest"}, now)
 	event := agg.Apply(HookPayload{SessionID: "idle-new", CWD: "/repo/low", HookEventName: "SessionStart"}, now.Add(time.Second))
+
+	if event.Status != StatusIdle {
+		t.Fatalf("status = %q, want %q", event.Status, StatusIdle)
+	}
+	if event.SessionID != "idle-new" {
+		t.Fatalf("display session = %q, want idle-new", event.SessionID)
+	}
+	if event.CWD != "/repo/low" {
+		t.Fatalf("display cwd = %q, want /repo/low", event.CWD)
+	}
+	if event.Label != "IDLE" {
+		t.Fatalf("label = %q, want IDLE", event.Label)
+	}
+	if event.OtherStatus != StatusWaitingConfirmation {
+		t.Fatalf("other status = %q, want %q", event.OtherStatus, StatusWaitingConfirmation)
+	}
+	if event.OtherCount != 1 {
+		t.Fatalf("other count = %d, want 1", event.OtherCount)
+	}
+	if got, want := event.OtherCWDs, []string{"/repo/high"}; !equalStrings(got, want) {
+		t.Fatalf("other cwds = %v, want %v", got, want)
+	}
+}
+
+func TestAggregatorUsesPriorityWithinPrimaryCWD(t *testing.T) {
+	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
+	agg := NewAggregator(time.Minute)
+
+	agg.Apply(HookPayload{SessionID: "working-new", CWD: "/repo", HookEventName: "PreToolUse"}, now.Add(time.Second))
+	event := agg.Apply(HookPayload{SessionID: "waiting-old", CWD: "/repo", HookEventName: "PermissionRequest"}, now)
 
 	if event.Status != StatusWaitingConfirmation {
 		t.Fatalf("status = %q, want %q", event.Status, StatusWaitingConfirmation)
@@ -80,11 +110,34 @@ func TestAggregatorDisplaySessionUsesHighestPriorityBeforeNewest(t *testing.T) {
 	if event.SessionID != "waiting-old" {
 		t.Fatalf("display session = %q, want waiting-old", event.SessionID)
 	}
-	if event.CWD != "/repo/high" {
-		t.Fatalf("display cwd = %q, want /repo/high", event.CWD)
+	if event.CWD != "/repo" {
+		t.Fatalf("display cwd = %q, want /repo", event.CWD)
 	}
-	if event.Label != "WAITING" {
-		t.Fatalf("label = %q, want WAITING", event.Label)
+	if event.OtherCount != 0 || event.OtherStatus != "" || event.OtherCWDs != nil {
+		t.Fatalf("other summary = status:%q count:%d cwds:%v, want zero values", event.OtherStatus, event.OtherCount, event.OtherCWDs)
+	}
+}
+
+func TestAggregatorOtherCWDsAreDedupedByMostRecentOrder(t *testing.T) {
+	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
+	agg := NewAggregator(time.Minute)
+
+	agg.Apply(HookPayload{SessionID: "other-a-old", CWD: "/repo/a", HookEventName: "PreToolUse"}, now)
+	agg.Apply(HookPayload{SessionID: "other-b", CWD: "/repo/b", HookEventName: "PermissionRequest"}, now.Add(time.Second))
+	agg.Apply(HookPayload{SessionID: "other-a-new", CWD: "/repo/a", HookEventName: "PostToolUse", Error: "failed"}, now.Add(2*time.Second))
+	event := agg.Apply(HookPayload{SessionID: "primary", CWD: "/repo/main", HookEventName: "SessionStart"}, now.Add(3*time.Second))
+
+	if event.Status != StatusIdle {
+		t.Fatalf("status = %q, want %q", event.Status, StatusIdle)
+	}
+	if event.OtherStatus != StatusError {
+		t.Fatalf("other status = %q, want %q", event.OtherStatus, StatusError)
+	}
+	if event.OtherCount != 3 {
+		t.Fatalf("other count = %d, want 3", event.OtherCount)
+	}
+	if got, want := event.OtherCWDs, []string{"/repo/a", "/repo/b"}; !equalStrings(got, want) {
+		t.Fatalf("other cwds = %v, want %v", got, want)
 	}
 }
 
@@ -111,11 +164,17 @@ func TestAggregatorStopDoesNotClearActiveSnapshotsForDifferentCWD(t *testing.T) 
 	agg.Apply(HookPayload{SessionID: "other-waiting", CWD: "/other", HookEventName: "PermissionRequest"}, now)
 	event := agg.Apply(HookPayload{SessionID: "current", CWD: "/repo", HookEventName: "Stop"}, now.Add(time.Second))
 
-	if event.Status != StatusWaitingConfirmation {
-		t.Fatalf("status after stop in different cwd = %q, want %q", event.Status, StatusWaitingConfirmation)
+	if event.Status != StatusIdle {
+		t.Fatalf("status after stop in different cwd = %q, want %q", event.Status, StatusIdle)
 	}
-	if event.CWD != "/other" {
-		t.Fatalf("display cwd after stop in different cwd = %q, want /other", event.CWD)
+	if event.CWD != "/repo" {
+		t.Fatalf("display cwd after stop in different cwd = %q, want /repo", event.CWD)
+	}
+	if event.OtherStatus != StatusWaitingConfirmation {
+		t.Fatalf("other status after stop in different cwd = %q, want %q", event.OtherStatus, StatusWaitingConfirmation)
+	}
+	if event.OtherCount != 1 {
+		t.Fatalf("other count after stop in different cwd = %d, want 1", event.OtherCount)
 	}
 }
 
@@ -194,4 +253,16 @@ func TestHTTPHandlerAcceptsPostJSONUpdatesTimestampAndEmits(t *testing.T) {
 	if !session.UpdatedAt.Equal(now) {
 		t.Fatalf("session UpdatedAt = %s, want %s", session.UpdatedAt, now)
 	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
