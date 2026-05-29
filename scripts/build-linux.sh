@@ -30,6 +30,6 @@ fi
 
 goarch=${GOARCH:-$(go env GOARCH)}
 mkdir -p dist
-CGO_ENABLED=${CGO_ENABLED:-1} GOOS=linux GOARCH="$goarch" go build -buildvcs=false -o "dist/work-light-linux-$goarch" .
+CGO_ENABLED=${CGO_ENABLED:-1} GOOS=linux GOARCH="$goarch" go build -buildvcs=false -tags gtk3 -o "dist/work-light-linux-$goarch" .
 
 echo "Linux executable: $repo_root/dist/work-light-linux-$goarch"

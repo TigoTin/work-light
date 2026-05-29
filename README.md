@@ -57,7 +57,7 @@ error > waiting_confirmation > working > idle > offline
 - Node.js and npm for the React frontend build.
 - Bash for the build scripts.
 - `curl` for the shell hook forwarder, or PowerShell for the Windows forwarder.
-- Linux builds require native GTK/WebKitGTK development packages. On Ubuntu 24.04:
+- Linux builds use Wails' GTK3 backend and require native GTK/WebKitGTK development packages. On Ubuntu 24.04:
 
 ```sh
 sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
@@ -81,7 +81,7 @@ The Windows script cross-compiles a GUI executable:
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
 ```
 
-The macOS and Linux scripts must run on their target OS because Wails uses native WebView libraries through CGO.
+The macOS and Linux scripts must run on their target OS because Wails uses native WebView libraries through CGO. The Linux script builds with `-tags gtk3` to target GTK3/WebKit2GTK 4.1.
 
 Outputs:
 

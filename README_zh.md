@@ -57,7 +57,7 @@ error > waiting_confirmation > working > idle > offline
 - Node.js 和 npm，用于构建 React 前端。
 - Bash，用于运行构建脚本。
 - shell 转发脚本需要 `curl`；Windows 转发脚本需要 PowerShell。
-- Linux 构建需要本机 GTK/WebKitGTK 开发包。Ubuntu 24.04 示例：
+- Linux 构建使用 Wails 的 GTK3 后端，需要本机 GTK/WebKitGTK 开发包。Ubuntu 24.04 示例：
 
 ```sh
 sudo apt-get install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
@@ -81,7 +81,7 @@ Windows 脚本会交叉编译 GUI 可执行文件：
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
 ```
 
-macOS 和 Linux 脚本必须在目标系统上运行，因为 Wails 通过 CGO 使用本机 WebView 依赖。
+macOS 和 Linux 脚本必须在目标系统上运行，因为 Wails 通过 CGO 使用本机 WebView 依赖。Linux 脚本会使用 `-tags gtk3`，目标为 GTK3/WebKit2GTK 4.1。
 
 输出路径：
 
