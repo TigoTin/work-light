@@ -15,6 +15,8 @@ A small cross-platform floating status window for Codex command hooks.
 
 Work Light listens for local Codex hook events and turns them into a compact desktop signal. It is meant to sit near the top of your desktop while Codex is working, waiting for permission, idle, or reporting an error.
 
+Work Light is observability-only: it listens to Codex Hooks and does not approve, reject, or control Codex actions. If you need an application that can handle approval/control flows, use Codex app-server instead of hooks.
+
 The local hook endpoint is:
 
 ```text
@@ -94,8 +96,9 @@ Release assets:
 | Platform | Asset |
 | --- | --- |
 | Windows | `work-light-windows-amd64.zip` |
-| macOS | `work-light-macos-arm64.app.zip` |
-| Linux | `work-light-linux-amd64.deb` |
+| Windows installer entry | `work-light-windows-amd64-setup.exe` or `work-light-windows-amd64-installer-entry.txt` |
+| macOS | `work-light-macos-arm64.app.zip`, `work-light-macos-arm64.dmg` |
+| Linux | `work-light-linux-amd64.deb`, `work-light-linux-x86_64.AppImage` |
 | Checksums | `checksums.txt` |
 
 Verify downloads with:
@@ -119,7 +122,7 @@ Each script installs frontend dependencies, builds the frontend, and then builds
 The Windows script cross-compiles a GUI executable:
 
 ```sh
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui -X main.version=0.1.0 -X main.commit=$(git rev-parse --short=12 HEAD) -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o dist/work-light.exe .
 ```
 
 The macOS and Linux scripts must run on their target OS because Wails uses native WebView libraries through CGO. The Linux script builds with `-tags gtk3` to target GTK3/WebKit2GTK 4.1.
@@ -134,10 +137,18 @@ dist/work-light-linux-<arch>
 
 The frontend is embedded with `go:embed`, so the executable does not need a neighboring `frontend/dist` directory at runtime.
 
+Release builds inject version metadata. You can inspect it with:
+
+```sh
+work-light --version
+```
+
 GitHub Actions builds Windows, macOS, and Linux artifacts on their native runners for pushes to `main` and pull requests.
 Version tags such as `v0.1.0` also publish a GitHub Release with packaged executables and `checksums.txt`.
 
 Published tags should not be moved. Use a new patch tag such as `v0.1.1` for follow-up releases.
+
+Release packaging details, including unsigned installer/dmg/AppImage entries and credentialed signing/notarization steps, are documented in [docs/release.md](docs/release.md).
 
 ## Run
 
@@ -147,6 +158,8 @@ Windows:
 .\dist\work-light.exe
 ```
 
+If you downloaded a release installer, run `work-light-windows-amd64-setup.exe`. Unsigned installers may show an operating-system warning unless the maintainer signs that release.
+
 macOS:
 
 ```sh
@@ -154,7 +167,7 @@ unzip work-light-macos-arm64.app.zip
 open "Work Light.app"
 ```
 
-The macOS app is currently unsigned. If Gatekeeper blocks the first launch, open it from Finder with Control-click -> Open, or run:
+You can also open the release dmg and drag Work Light into Applications. The macOS app is currently unsigned unless the release notes say it was signed and notarized. If Gatekeeper blocks the first launch, open it from Finder with Control-click -> Open, or run:
 
 ```sh
 xattr -dr com.apple.quarantine "Work Light.app"
@@ -165,6 +178,13 @@ Linux:
 ```sh
 sudo apt install ./work-light-linux-amd64.deb
 work-light
+```
+
+Or run the AppImage release asset:
+
+```sh
+chmod +x work-light-linux-x86_64.AppImage
+./work-light-linux-x86_64.AppImage
 ```
 
 When running, Work Light listens locally at:
@@ -286,6 +306,8 @@ Example payload:
 The handler returns `202 Accepted` with the derived status event. Invalid JSON returns `400`, and methods other than `POST` return `405`.
 
 The forwarding scripts intentionally exit successfully if Work Light is not running, so Codex is not blocked by a missing status window.
+
+Hooks are a notification surface only. Work Light intentionally does not call approval APIs or mutate Codex sessions; use Codex app-server for approval-capable integrations.
 
 ## Development
 

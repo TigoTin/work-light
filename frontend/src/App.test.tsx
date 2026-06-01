@@ -17,7 +17,9 @@ type TestScreen = {
 const windowApi = vi.hoisted(() => ({
   Minimise: vi.fn(() => Promise.resolve()),
   SetAlwaysOnTop: vi.fn(() => Promise.resolve()),
-  SetPosition: vi.fn(() => Promise.resolve())
+  SetPosition: vi.fn(() => Promise.resolve()),
+  SetSize: vi.fn(() => Promise.resolve()),
+  Show: vi.fn(() => Promise.resolve())
 }));
 
 const screensApi = vi.hoisted(() => ({
@@ -75,11 +77,13 @@ describe('App signal states', () => {
   it('uses compact overflow-safe anchors for the small floating window', () => {
     render(<App initialStatus="idle" />);
 
+    expect(screen.getByTestId('shell-layout')).toHaveClass('pixel-shell-layout', 'tools-auto-hide');
     expect(screen.getByTestId('signal-shell')).toHaveClass(
       'pixel-shell',
       'overflow-guard',
       'capsule-shell',
-      'horizontal-shell'
+      'horizontal-shell',
+      'main-surface'
     );
     expect(screen.getByTestId('status-label')).toHaveAttribute('title', 'IDLE');
   });
@@ -305,6 +309,20 @@ describe('App signal states', () => {
     expect(screensApi.GetPrimary).toHaveBeenCalledTimes(1);
   });
 
+  it('forces the native window size on first mount before positioning', async () => {
+    render(<App initialStatus="idle" />);
+
+    await waitFor(() => {
+      expect(windowApi.SetSize).toHaveBeenNthCalledWith(1, 225, 77);
+      expect(windowApi.SetPosition).toHaveBeenCalledWith(570, 28);
+      expect(windowApi.Show).toHaveBeenCalledTimes(1);
+      expect(windowApi.SetSize).toHaveBeenNthCalledWith(2, 224, 76);
+    });
+    expect(windowApi.SetSize.mock.invocationCallOrder[0]).toBeLessThan(windowApi.SetPosition.mock.invocationCallOrder[0]);
+    expect(windowApi.SetPosition.mock.invocationCallOrder[0]).toBeLessThan(windowApi.Show.mock.invocationCallOrder[0]);
+    expect(windowApi.Show.mock.invocationCallOrder[0]).toBeLessThan(windowApi.SetSize.mock.invocationCallOrder[1]);
+  });
+
   it('uses logical primary work area coordinates without physical scale correction', async () => {
     screensApi.GetPrimary.mockResolvedValueOnce({
       WorkArea: {
@@ -371,54 +389,31 @@ describe('App signal states', () => {
     expect(screensApi.GetPrimary).toHaveBeenCalledTimes(1);
   });
 
-  it('marks the shell so bottom controls can be hidden until hover or keyboard focus', () => {
+  it('does not render window controls inside the floating widget', () => {
     render(<App initialStatus="idle" />);
 
-    expect(screen.getByTestId('signal-shell')).toHaveClass('tools-auto-hide');
+    expect(screen.queryByLabelText('Window controls')).toBeNull();
+    expect(screen.queryByRole('button', { name: '取消置顶' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '最小化' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '清除错误' })).toBeNull();
   });
 
-  it('toggles always-on-top through the Wails window API', async () => {
-    render(<App initialStatus="idle" />);
-
-    const pinButton = screen.getByRole('button', { name: '取消置顶' });
-    fireEvent.click(pinButton);
-
-    expect(windowApi.SetAlwaysOnTop).toHaveBeenCalledWith(false);
-    expect(screen.getByRole('button', { name: '固定置顶' })).toHaveAttribute('aria-pressed', 'false');
-
-    fireEvent.click(screen.getByRole('button', { name: '固定置顶' }));
-
-    expect(windowApi.SetAlwaysOnTop).toHaveBeenLastCalledWith(true);
-    expect(screen.getByRole('button', { name: '取消置顶' })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('minimises through the Wails window API without applying the local minimized shell', async () => {
-    render(<App initialStatus="idle" />);
-
-    fireEvent.click(screen.getByRole('button', { name: '最小化' }));
-
-    expect(windowApi.Minimise).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('signal-shell')).not.toHaveClass('is-minimized');
-  });
-
-  it('clears an error status back to idle from the window controls', async () => {
+  it('clears an error status back to idle from the tray clear event', async () => {
     render(<App initialStatus="error" />);
 
-    const clearButton = screen.getByRole('button', { name: '清除错误' });
-    expect(clearButton).toBeEnabled();
-
-    fireEvent.click(clearButton);
+    act(() => {
+      window.dispatchEvent(new CustomEvent('workLightClearError'));
+    });
 
     expect(screen.getByLabelText('Codex status IDLE')).toHaveTextContent('IDLE');
   });
 
-  it('keeps the clear error control enabled without changing idle status', async () => {
+  it('keeps the tray clear event harmless when already idle', async () => {
     render(<App initialStatus="idle" />);
 
-    const clearButton = screen.getByRole('button', { name: '清除错误' });
-    expect(clearButton).toBeEnabled();
-
-    fireEvent.click(clearButton);
+    act(() => {
+      window.dispatchEvent(new CustomEvent('workLightClearError'));
+    });
 
     expect(screen.getByLabelText('Codex status IDLE')).toHaveTextContent('IDLE');
   });

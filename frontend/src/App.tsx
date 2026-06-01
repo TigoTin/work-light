@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Window } from '@wailsio/runtime';
+import { Events } from '@wailsio/runtime';
 import { PixelShell } from './components/PixelShell';
 import { SignalLamp } from './components/SignalLamp';
 import { type CodexStatus, type SessionSnapshot, createStatusStore, statusStore } from './statusStore';
@@ -130,7 +130,6 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
   const cwd = useSyncExternalStore(store.subscribe, store.getCwdSnapshot, store.getCwdSnapshot);
   const other = useSyncExternalStore(store.subscribe, store.getOtherSnapshot, store.getOtherSnapshot);
   const sessions = useSyncExternalStore(store.subscribe, store.getSessionsSnapshot, store.getSessionsSnapshot);
-  const [pinned, setPinned] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
   const [selectedCwd, setSelectedCwd] = useState('');
   const selectedStatus = selectedCwd ? statusForWorkspace(sessions, selectedCwd) : undefined;
@@ -163,19 +162,26 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
     }
   }, [selectedCwd, selectedStatus, sessions]);
 
-  function togglePin() {
-    setPinned((current) => {
-      const next = !current;
-      void Window.SetAlwaysOnTop(next);
-      return next;
-    });
-  }
+  useEffect(() => {
+    const clearError = () => {
+      if (store.getSnapshot() === 'error') {
+        store.setStatus('idle');
+      }
+    };
+    const unsubscribe = Events.On('workLightClearError', clearError);
+    const handleDomClear = () => clearError();
+
+    window.addEventListener('workLightClearError', handleDomClear);
+    return () => {
+      unsubscribe?.();
+      window.removeEventListener('workLightClearError', handleDomClear);
+    };
+  }, [store]);
 
   return (
     <main className="app-root">
       <PixelShell
         status={displayStatus}
-        pinned={pinned}
         workspaceName={workspace}
         workspaceCwd={displayCwd}
         workspaceSelected={Boolean(selectedStatus)}
@@ -227,13 +233,6 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
             </div>
           ) : undefined
         }
-        onTogglePin={togglePin}
-        onMinimize={() => void Window.Minimise()}
-        onClearError={() => {
-          if (displayStatus === 'error') {
-            store.setStatus('idle');
-          }
-        }}
       >
         <div className="lamp-row lamp-row-horizontal" aria-label="Codex signal lamps" data-testid="lamp-row">
           <SignalLamp color="red" status={displayStatus} active={lamps.red} />

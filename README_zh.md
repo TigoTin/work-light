@@ -15,6 +15,8 @@ Work Light 是一个用于 Codex command hooks 的跨平台桌面悬浮状态灯
 
 Work Light 在本机接收 Codex hook 事件，并把 Codex 当前状态显示成一个紧凑的桌面信号灯。它适合放在桌面顶部附近，用来观察 Codex 是否正在工作、等待授权、空闲或进入错误状态。
 
+Work Light 只做可观测性：它监听 Codex Hooks，不会审批、拒绝或控制 Codex 动作。如果你需要在应用里处理审批/控制流程，应使用 Codex app-server，而不是 hooks。
+
 本地 hook 接收端点为：
 
 ```text
@@ -94,8 +96,9 @@ Release 产物：
 | 平台 | 文件 |
 | --- | --- |
 | Windows | `work-light-windows-amd64.zip` |
-| macOS | `work-light-macos-arm64.app.zip` |
-| Linux | `work-light-linux-amd64.deb` |
+| Windows installer 入口 | `work-light-windows-amd64-setup.exe` 或 `work-light-windows-amd64-installer-entry.txt` |
+| macOS | `work-light-macos-arm64.app.zip`、`work-light-macos-arm64.dmg` |
+| Linux | `work-light-linux-amd64.deb`、`work-light-linux-x86_64.AppImage` |
 | 校验文件 | `checksums.txt` |
 
 下载后可以校验：
@@ -119,7 +122,7 @@ bash scripts/build-linux.sh
 Windows 脚本会交叉编译 GUI 可执行文件：
 
 ```sh
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui -X main.version=0.1.0 -X main.commit=$(git rev-parse --short=12 HEAD) -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o dist/work-light.exe .
 ```
 
 macOS 和 Linux 脚本必须在目标系统上运行，因为 Wails 通过 CGO 使用本机 WebView 依赖。Linux 脚本会使用 `-tags gtk3`，目标为 GTK3/WebKit2GTK 4.1。
@@ -134,10 +137,18 @@ dist/work-light-linux-<arch>
 
 前端会通过 `go:embed` 嵌入可执行文件，运行时不需要在同目录携带 `frontend/dist`。
 
+Release 构建会注入版本信息，可以这样查看：
+
+```sh
+work-light --version
+```
+
 GitHub Actions 会在原生 runner 上为推送到 `main` 和 pull request 构建 Windows、macOS、Linux 产物。
 推送 `v0.1.0` 这类版本 tag 时，也会自动创建 GitHub Release，并附上三个平台的安装包和 `checksums.txt`。
 
 已经发布的 tag 不要移动。后续修复请使用新的 patch tag，例如 `v0.1.1`。
+
+发布打包细节，包括未签名 installer/dmg/AppImage 入口和需要凭证的签名、公证步骤，见 [docs/release.md](docs/release.md)。
 
 ## 运行
 
@@ -147,6 +158,8 @@ Windows：
 .\dist\work-light.exe
 ```
 
+如果下载的是 Release installer，可以运行 `work-light-windows-amd64-setup.exe`。除非发布说明明确写了已签名，否则未签名安装器可能触发系统安全提示。
+
 macOS：
 
 ```sh
@@ -154,7 +167,7 @@ unzip work-light-macos-arm64.app.zip
 open "Work Light.app"
 ```
 
-macOS 应用当前未签名。如果 Gatekeeper 首次拦截，可以在 Finder 中按住 Control 点击应用并选择 Open，或者运行：
+也可以打开 Release dmg，把 Work Light 拖入 Applications。除非发布说明明确写了已签名并公证，否则 macOS 应用当前未签名。如果 Gatekeeper 首次拦截，可以在 Finder 中按住 Control 点击应用并选择 Open，或者运行：
 
 ```sh
 xattr -dr com.apple.quarantine "Work Light.app"
@@ -165,6 +178,13 @@ Linux：
 ```sh
 sudo apt install ./work-light-linux-amd64.deb
 work-light
+```
+
+或者运行 AppImage 产物：
+
+```sh
+chmod +x work-light-linux-x86_64.AppImage
+./work-light-linux-x86_64.AppImage
 ```
 
 启动后，Work Light 会在本机监听：
@@ -283,6 +303,8 @@ Content-Type: application/json
 处理成功时返回 `202 Accepted` 和计算后的状态事件。JSON 无效时返回 `400`，非 `POST` 请求返回 `405`。
 
 转发脚本会在 Work Light 未运行时保持成功退出，避免因为状态窗口未启动而阻塞 Codex。
+
+Hooks 只是通知面。Work Light 有意不调用审批 API，也不修改 Codex 会话；需要审批能力的集成请使用 Codex app-server。
 
 ## 开发
 

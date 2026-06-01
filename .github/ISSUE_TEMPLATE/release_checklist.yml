@@ -1,0 +1,57 @@
+name: Release checklist
+description: Track a Work Light release before publishing assets.
+title: "Release: v"
+labels:
+  - release
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: README.md and README_zh.md describe the current behavior and release assets.
+          required: true
+        - label: Tests and platform build jobs have passed on the release commit.
+          required: true
+        - label: The release tag is new and will not be moved after publishing.
+          required: true
+  - type: checkboxes
+    id: assets
+    attributes:
+      label: Release assets
+      options:
+        - label: Windows zip is attached.
+          required: true
+        - label: Windows installer entry is attached, or docs explain why installer credentials/tools were not used.
+          required: true
+        - label: macOS app zip is attached.
+          required: true
+        - label: macOS dmg entry is attached.
+          required: true
+        - label: Linux deb is attached.
+          required: true
+        - label: Linux AppImage entry is attached.
+          required: true
+        - label: checksums.txt is attached.
+          required: true
+  - type: checkboxes
+    id: credentialed
+    attributes:
+      label: Credentialed steps
+      description: Only mark these when maintainer-owned credentials were actually used.
+      options:
+        - label: Windows installer was signed.
+        - label: macOS app was signed and notarized.
+        - label: winget package submission was completed.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Release notes
+      description: Summarize user-visible changes and known limitations.

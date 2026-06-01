@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible problem in Work Light.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include enough detail to reproduce it.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: Work Light shows waiting even after Codex stops.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest set of steps that triggers the issue.
+      placeholder: |
+        1. Start Work Light
+        2. Configure Codex hooks
+        3. Run ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Work Light version
+      placeholder: v0.1.0 or commit SHA
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or hook payload
+      description: Remove secrets and local tokens before pasting logs.
+      render: text

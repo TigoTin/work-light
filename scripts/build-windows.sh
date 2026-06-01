@@ -19,7 +19,11 @@ if [[ ! -f frontend/dist/index.html ]]; then
 fi
 
 mkdir -p dist
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "-H=windowsgui" -o dist/work-light.exe .
+version=${GITHUB_REF_NAME:-dev}
+version=${version#v}
+commit=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+ldflags="-H=windowsgui -X main.version=$version -X main.commit=$commit -X main.date=$date"
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -ldflags "$ldflags" -o dist/work-light.exe .
 
 echo "Windows executable: $repo_root/dist/work-light.exe"
-

@@ -25,6 +25,11 @@ fi
 
 goarch=${GOARCH:-$(go env GOARCH)}
 mkdir -p dist
-CGO_ENABLED=${CGO_ENABLED:-1} GOOS=darwin GOARCH="$goarch" go build -buildvcs=false -o "dist/work-light-darwin-$goarch" .
+version=${GITHUB_REF_NAME:-dev}
+version=${version#v}
+commit=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+ldflags="-X main.version=$version -X main.commit=$commit -X main.date=$date"
+CGO_ENABLED=${CGO_ENABLED:-1} GOOS=darwin GOARCH="$goarch" go build -buildvcs=false -ldflags "$ldflags" -o "dist/work-light-darwin-$goarch" .
 
 echo "macOS executable: $repo_root/dist/work-light-darwin-$goarch"
