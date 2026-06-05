@@ -225,7 +225,7 @@ export default function App({ initialStatus, initialCwd }: AppProps) {
                 </span>
               ))}
               {hiddenOtherCount > 0 ? (
-                <span className="other-session-item" role="listitem">
+                <span className="other-session-item other-session-summary" role="listitem">
                   <span className="other-session-dot other-status-offline" aria-hidden="true" />
                   <span className="other-session-name">+{hiddenOtherCount}</span>
                 </span>

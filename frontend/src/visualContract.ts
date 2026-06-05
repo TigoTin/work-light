@@ -83,6 +83,20 @@ export const visualRegressionContract: {
         'text-overflow': 'ellipsis',
         'white-space': 'nowrap'
       }
+    },
+    {
+      selector: '.other-session-item',
+      declarations: {
+        display: 'block',
+        overflow: 'hidden'
+      }
+    },
+    {
+      selector: '.other-session-summary',
+      declarations: {
+        display: 'grid',
+        'grid-template-columns': '6px minmax(0, 1fr)'
+      }
     }
   ]
 };

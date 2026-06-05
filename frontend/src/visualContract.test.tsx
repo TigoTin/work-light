@@ -1,13 +1,40 @@
 import { render, screen } from '@testing-library/react';
 // @ts-expect-error Node types are intentionally not a frontend dependency.
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { visualRegressionContract } from './visualContract';
 
 declare const process: {
   cwd: () => string;
 };
+
+const windowApi = vi.hoisted(() => ({
+  SetPosition: vi.fn(() => Promise.resolve()),
+  SetSize: vi.fn(() => Promise.resolve()),
+  Show: vi.fn(() => Promise.resolve())
+}));
+
+const screensApi = vi.hoisted(() => ({
+  GetPrimary: vi.fn(() =>
+    Promise.resolve({
+      WorkArea: {
+        X: 40,
+        Y: 20,
+        Width: 1280,
+        Height: 720
+      }
+    })
+  )
+}));
+
+vi.mock('@wailsio/runtime', () => ({
+  Window: windowApi,
+  Screens: screensApi,
+  Events: {
+    On: vi.fn(() => () => undefined)
+  }
+}));
 
 let stylesheet = '';
 
